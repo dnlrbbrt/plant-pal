@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Pal</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Nunito font (rounded, bubbly, kawaii!) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Use Nunito font */
+        body {
+            font-family: 'Nunito', sans-serif;
+        }
+        
+        /* Simple loading spinner - updated color */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #60a5fa; /* Blue-400 for kawaii theme */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Custom scrollbar for a more app-like feel - updated for kawaii theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #fdf2f8; /* pink-50 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #fbcfe8; /* pink-200 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f472b6; /* pink-400 */
+        }
+        
+        /* Hide file input */
+        #image-uploader, #diagnosis-image-uploader {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-pink-50 text-gray-800 h-full flex flex-col">
+
+    <!-- Header - Kawaii theme -->
+    <header class="bg-white shadow-lg sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-pink-500">🪴 Plant Pal <span class="text-blue-400">🌸</span></h1>
+            <button id="view-encyclopedia-btn" class="bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-2xl shadow-md transition duration-300 text-sm md:text-base">
+                📚 Plant Library
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-4xl mx-auto p-4 md:p-8 w-full">
+
+        <!-- Loading State -->
+        <div id="loading" class="flex flex-col items-center justify-center p-10">
+            <div class="loader"></div>
+            <p class="mt-4 text-lg text-gray-500 font-semibold">Waking up the plants...</p>
+        </div>
+
+        <!-- Main App Content (Hidden by default) -->
+        <div id="app-content" class="hidden">
+        
+            <!-- AI Identification Section -->
+            <section id="ai-plant-form-section" class="bg-white p-6 rounded-3xl shadow-xl mb-8 border-t-4 border-pink-400">
+                <h2 class="text-2xl font-bold mb-4 text-pink-600">Plant Identifier</h2>
+                <p class="text-gray-600 mb-4">Don't know your new friend? Upload a photo and I'll find out!</p>
+                
+                <!-- File Uploader -->
+                <input type="file" id="image-uploader" accept="image/*">
+                <label for="image-uploader" class="w-full cursor-pointer bg-pink-400 hover:bg-pink-500 text-white font-bold py-3 px-5 rounded-2xl transition duration-300 shadow-lg inline-block text-center">
+                    Upload a Photo 📸
+                </label>
+                
+                <!-- AI Loading and Preview Area -->
+                <div id="ai-status-area" class="mt-4 text-center">
+                    <!-- AI Loading Spinner -->
+                    <div id="ai-loading" class="hidden flex flex-col items-center justify-center p-4">
+                        <div class="loader !border-t-pink-500"></div>
+                        <p class="mt-2 text-lg text-gray-500 font-semibold">Thinking... (｡•́‿•̀｡)</p>
+                    </div>
+                    <!-- Image Preview -->
+                    <img id="image-preview" src="" class="hidden max-h-60 mx-auto rounded-2xl shadow-md mt-4" alt="Image preview" />
+                    <!-- AI Error Message -->
+                    <p id="ai-error" class="hidden text-red-500 font-semibold"></p>
+                </div>
+            </section>
+
+            <!-- Add Plant Form - Kawaii theme -->
+            <section id="add-plant-form-section" class="bg-white p-6 rounded-3xl shadow-xl mb-8 border-t-4 border-blue-300">
+                <h2 class="text-2xl font-bold mb-4 text-blue-600">Add a Plant Friend (Manual) 💌</h2>
+                <form id="add-plant-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <!-- Column 1 -->
+                    <div class="flex flex-col justify-end space-y-4">
+                        <div>
+                            <label for="plant-type" class="block text-sm font-semibold text-gray-700 mb-1">Plant Type (from list)</label>
+                            <select id="plant-type" name="plant-type" class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="plant-nickname" class="block text-sm font-semibold text-gray-700 mb-1">Nickname</label>
+                            <input type="text" id="plant-nickname" name="plant-nickname" class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Shelly the Succulent" required>
+                        </div>
+                    </div>
+
+                    <!-- Column 2 -->
+                    <div class="flex flex-col justify-end space-y-4">
+                        <div>
+                            <label for="plant-location" class="block text-sm font-semibold text-gray-700 mb-1">Default Location (Light)</label>
+                            <select id="plant-location" name="plant-location" class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="direct_sun">☀️ Direct Sun</option>
+                                <option value="bright_indirect">🌤️ Bright Indirect Light</option>
+                                <option value="medium_light" selected>⛅ Medium Light</option>
+                                <option value="low_light">☁️ Low Light</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="pot-size" class="block text-sm font-semibold text-gray-700 mb-1">Default Pot Size</label>
+                            <select id="pot-size" name="pot-size" class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="small">S (2-4" pot)</option>
+                                <option value="medium" selected>M (5-8" pot)</option>
+                                <option value="large">L (9"+ pot)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Column 3 -->
+                    <div class="flex flex-col justify-end space-y-4">
+                        <div>
+                            <label for="pot-material" class="block text-sm font-semibold text-gray-700 mb-1">Default Pot Material</label>
+                            <select id="pot-material" name="pot-material" class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="terracotta">🏺 Terracotta (dries fast)</option>
+                                <option value="ceramic" selected>🧊 Ceramic / Glazed (avg)</option>
+                                <option value="plastic"> plastica (holds moisture)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full bg-green-400 hover:bg-green-500 text-white font-bold py-3 px-5 rounded-2xl transition duration-300 shadow-lg h-fit">
+                                Add Manually
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- My Plants List -->
+            <section>
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-green-600">My Little Plant Family ♡</h2>
+                    
+                    <!-- Filter and Sort Controls -->
+                    <div class="flex space-x-2 mt-4 md:mt-0">
+                        <select id="filter-plants" class="bg-white border border-gray-300 text-gray-700 rounded-2xl p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="all">Show All</option>
+                            <option value="needs_water">Needs Water!</option>
+                            <option value="needs_fertilizer">Needs Food!</option>
+                            <option value="needs_health_check">Needs Checkup!</option>
+                        </select>
+                        <select id="sort-plants" class="bg-white border border-gray-300 text-gray-700 rounded-2xl p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="name_asc">Sort by Name (A-Z)</option>
+                            <option value="next_watering">Sort by Next Watering</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="plant-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Plant cards will be populated here -->
+                    <p id="no-plants-message" class="text-gray-500 text-center md:col-span-2 lg:col-span-3 p-6 bg-white rounded-3xl shadow-inner">
+                        🌱 Start by adding your first plant friend above!
+                    </p>
+                </div>
+            </section>
+        </div>
+
+    </main>
+    
+    <!-- Footer / Notification Info -->
+    <footer class="bg-white text-gray-400 text-center p-4 mt-8 text-xs border-t border-gray-200">
+        <p>Your User ID: <strong id="user-id-display" class="text-gray-600">Loading...</strong></p>
+        <p class="mt-2">
+            <strong>Note:</strong> This app uses <strong class="text-pink-500">browser notifications</strong>. 
+            Keep this page open in a tab to get your plant's adorable reminders!
+        </p>
+    </footer>
+
+    <!-- MODALS -->
+
+    <!-- AI Result Modal -->
+    <div id="ai-result-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md transform transition-all duration-300 scale-95 opacity-0" id="ai-modal-content">
+            <h2 class="text-2xl font-bold text-center text-pink-600">🌿 I found your plant! 🌿</h2>
+            <div class="text-center my-4 p-4 bg-gray-100 rounded-2xl">
+                <h3 id="ai-plant-name" class="text-xl font-bold text-gray-800"></h3>
+            </div>
+            <div class="text-sm text-gray-700 space-y-2 mb-4 p-3 bg-blue-50 rounded-2xl border border-blue-200">
+                <p>💡 Preferred Light: <span id="ai-light-pref" class="font-semibold text-blue-700"></span></p>
+                <p>🪨 Recommended Soil: <span id="ai-soil-pref" class="font-semibold text-blue-700"></span></p>
+                <p>💧 Watering: <span id="ai-water-freq" class="font-semibold text-blue-700"></span></p>
+            </div>
+            <div class="mt-4">
+                <label for="ai-plant-nickname" class="block text-sm font-semibold text-gray-700 mb-1">Give your new friend a name:</label>
+                <input type="text" id="ai-plant-nickname" name="ai-plant-nickname" class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Peter the Pothos" required>
+            </div>
+            <div class="mt-6 grid grid-cols-2 gap-4">
+                <button id="ai-modal-cancel" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-2xl transition duration-300">
+                    Cancel
+                </button>
+                <button id="ai-modal-add" class="w-full bg-pink-400 hover:bg-pink-500 text-white font-bold py-2 px-4 rounded-2xl transition duration-300">
+                    Add to Greenhouse
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Plant Journal Modal -->
+    <div id="journal-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-lg transform transition-all duration-300 scale-95 opacity-0" id="journal-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-green-600">Plant Journal: <span id="journal-plant-name"></span></h2>
+                <button id="journal-modal-close" class="text-gray-400 hover:text-gray-600 text-3xl font-light">&times;</button>
+            </div>
+            
+            <!-- Log New Entry -->
+            <div class="mb-4">
+                <h3 class="text-lg font-semibold mb-2 text-gray-700">Log a new entry:</h3>
+                <div class="flex space-x-2 mb-2">
+                    <input type="text" id="journal-note-input" class="flex-grow bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Add a note (e.g., 'New leaf!')">
+                    <button id="journal-add-note" class="bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-2xl transition duration-300">Save</button>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="journal-log-repot" class="flex-1 bg-yellow-200 hover:bg-yellow-300 text-yellow-800 text-sm font-semibold py-2 px-3 rounded-2xl transition duration-300">Log Repotting 🏺</button>
+                    <button id="journal-log-rotate" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 text-sm font-semibold py-2 px-3 rounded-2xl transition duration-300">Log Rotation 🔄</button>
+                </div>
+            </div>
+
+            <!-- History -->
+            <h3 class="text-lg font-semibold mb-2 text-gray-700">History:</h3>
+            <div id="journal-history-list" class="h-64 overflow-y-auto bg-gray-50 p-3 rounded-2xl border border-gray-200 space-y-3">
+                <!-- Journal entries will be populated here -->
+                <p class="text-gray-500">No history yet.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Plant Diagnosis Modal -->
+    <div id="diagnosis-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md transform transition-all duration-300 scale-95 opacity-0" id="diagnosis-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-pink-600">🩺 Plant Doctor! 🩺</h2>
+                <button id="diagnosis-modal-close" class="text-gray-400 hover:text-gray-600 text-3xl font-light">&times;</button>
+            </div>
+            <p class="text-gray-600 mb-4">What's wrong with <span id="diagnosis-plant-name" class="font-bold"></span>? Upload a close-up photo of the problem (e.g., a single leaf).</p>
+            
+            <input type="file" id="diagnosis-image-uploader" accept="image/*">
+            <label for="diagnosis-image-uploader" class="w-full cursor-pointer bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-4 rounded-2xl transition duration-300 shadow-lg inline-block text-center">
+                Upload Problem Photo 📸
+            </label>
+            
+            <div id="diagnosis-status-area" class="mt-4 text-center">
+                <!-- AI Loading Spinner -->
+                <div id="diagnosis-loading" class="hidden flex flex-col items-center justify-center p-4">
+                    <div class="loader !border-t-pink-500"></div>
+                    <p class="mt-2 text-lg text-gray-500 font-semibold">Diagnosing the ouchie...</p>
+                </div>
+                <!-- Image Preview -->
+                <img id="diagnosis-image-preview" src="" class="hidden max-h-60 mx-auto rounded-2xl shadow-md mt-4" alt="Diagnosis preview" />
+                <!-- AI Error Message -->
+                <p id="diagnosis-error" class="hidden text-red-500 font-semibold"></p>
+                
+                <!-- Diagnosis Result -->
+                <div id="diagnosis-result" class="hidden text-left mt-4 p-4 bg-gray-100 rounded-2xl">
+                    <h3 class="text-lg font-bold text-gray-800">Diagnosis: <span id="diagnosis-problem" class="text-red-600"></span></h3>
+                    <p class="text-gray-700 mt-2">Recommended Plan:</p>
+                    <p id="diagnosis-remediation" class="text-gray-700 text-sm"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Encyclopedia Modal -->
+    <div id="encyclopedia-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-2xl h-[90vh] transform transition-all duration-300 scale-95 opacity-0 flex flex-col" id="encyclopedia-modal-content">
+            
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-2xl font-bold text-blue-600">📚 Plant Library (So much to learn!)</h2>
+                <button id="encyclopedia-modal-close" class="text-gray-400 hover:text-gray-600 text-3xl font-light">&times;</button>
+            </div>
+            
+            <!-- Search -->
+            <input type="text" id="encyclopedia-search" placeholder="Search by name or keyword..." class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 mb-4 focus:ring-blue-500 focus:border-blue-500">
+
+            <!-- Plant List -->
+            <div id="encyclopedia-list" class="flex-grow overflow-y-auto space-y-4 pr-2">
+                <!-- Encyclopedia entries will be populated here -->
+                <div id="encyclopedia-loading" class="flex flex-col items-center justify-center p-10">
+                    <div class="loader !border-t-blue-500"></div>
+                    <p class="mt-4 text-lg text-gray-500 font-semibold">Loading the library...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            collection, 
+            onSnapshot,
+            getDocs, 
+            arrayUnion, 
+            setLogLevel
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- 1. CONFIGURATION ---
+
+        const ENCYCLOPEDIA_SEED_DATA = {
+            'monstera_deliciosa': { 
+                key: 'monstera_deliciosa', 
+                name: 'Monstera Deliciosa (Swiss Cheese Plant)', 
+                icon: '🌿', 
+                frequencyDays: 10, 
+                lightPreference: 'bright_indirect', 
+                soilPreference: 'Well-draining mix (Aroid/Orchid Bark)',
+                description: 'Famous for its unique fenestrated leaves. A fast-growing tropical plant that loves bright, indirect light. Allow the top two inches of soil to dry out between waterings.',
+                commonProblems: ['Root rot from overwatering', 'Yellowing leaves from lack of light or nutrients']
+            },
+            'epipremnum_aureum': { 
+                key: 'epipremnum_aureum', 
+                name: 'Epipremnum Aureum (Golden Pothos)', 
+                icon: '🍃', 
+                frequencyDays: 14, 
+                lightPreference: 'low_light', 
+                soilPreference: 'Standard potting mix',
+                description: 'An easy-care trailing vine perfect for beginners. Tolerates low light but thrives in medium, indirect light. If leaves start curling, it is very thirsty!',
+                commonProblems: ['Brown leaf tips from too much fertilizer', 'Pale leaves in low light']
+            },
+            'sansevieria_trifasciata': { 
+                key: 'sansevieria_trifasciata', 
+                name: 'Sansevieria Trifasciata (Snake Plant)', 
+                icon: '🐍', 
+                frequencyDays: 20, 
+                lightPreference: 'low_light', 
+                soilPreference: 'Well-draining, slightly sandy mix',
+                description: 'Extremely resilient and highly tolerant of neglect. Water sparingly, especially in winter. It can handle dark corners but prefers bright light for best growth.',
+                commonProblems: ['Mushy leaves (fatal overwatering)', 'Doesn\'t grow much (too little light)']
+            },
+            'nephrolepis_exaltata': { 
+                key: 'nephrolepis_exaltata', 
+                name: 'Nephrolepis Exaltata (Boston Fern)', 
+                icon: '🌱', 
+                frequencyDays: 5, 
+                lightPreference: 'low_light', 
+                soilPreference: 'Moisture-retentive, peaty mix',
+                description: 'A classic indoor fern that loves high humidity and consistent moisture. Never let the soil dry out completely, and mist frequently. Keep out of direct sun.',
+                commonProblems: ['Dry, crispy fronds (low humidity)', 'Scale insects']
+            },
+            'ficus_lyrata': { 
+                key: 'ficus_lyrata', 
+                name: 'Ficus Lyrata (Fiddle Leaf Fig)', 
+                icon: '🌳', 
+                frequencyDays: 12, 
+                lightPreference: 'bright_indirect', 
+                soilPreference: 'Rich, fast-draining potting soil',
+                description: 'A popular but fussy tree known for its violin-shaped leaves. Needs consistent bright light. Avoid moving it often, as it reacts poorly to changes.',
+                commonProblems: ['Brown spots (overwatering)', 'Leaf drop (drafts or movement)']
+            },
+            'phalaenopsis_orchid': { 
+                key: 'phalaenopsis_orchid', 
+                name: 'Phalaenopsis (Moth Orchid)', 
+                icon: '🌸', 
+                frequencyDays: 9, 
+                lightPreference: 'medium_light', 
+                soilPreference: 'Orchid bark or sphagnum moss',
+                description: 'The most common houseplant orchid. Water by soaking the entire pot when the roots turn silvery-green. Requires high humidity and air circulation.',
+                commonProblems: ['Wrinkled leaves (underwatering)', 'Fungal infections from stale water']
+            },
+            'chlorophytum_comosum': { 
+                key: 'chlorophytum_comosum', 
+                name: 'Chlorophytum Comosum (Spider Plant)', 
+                icon: '🕷️', 
+                frequencyDays: 7, 
+                lightPreference: 'medium_light', 
+                soilPreference: 'Standard potting mix',
+                description: 'An easy, adaptable plant famous for producing "spiderettes." Keep the soil slightly moist. The plant is non-toxic and excellent for beginners.',
+                commonProblems: ['Brown leaf tips (tap water mineral buildup)', 'Poor growth in deep shade']
+            },
+            'echeveria_succulent': { 
+                key: 'echeveria_succulent', 
+                name: 'Echeveria (Rosette Succulent)', 
+                icon: '🌵', 
+                frequencyDays: 21, 
+                lightPreference: 'direct_sun', 
+                soilPreference: 'Cactus/Succulent soil (gritty)',
+                description: 'A desert plant that stores water in its leaves. Requires maximum light and should be watered thoroughly only when the soil is completely dry. Less water in winter.',
+                commonProblems: ['Rotting (overwatering)', 'Stretching/etiolation (too little light)']
+            }
+        };
+
+        const cutePhrases = [
+            "Hey, I'm thirsty! My leaves are starting to crinkle. 🥺",
+            "A little drink, please? My soil is bone dry! 💧",
+            "Feeling a bit parched over here... Send water! ☀️",
+            "Pls water... I'm wilting... (｡•́︿•̀｡)"
+        ];
+        const healthPhrases = {
+            'light_problem_too_much': "It's too bright! I'm getting sunburnt. 🥵 Could you move me somewhere shadier?",
+            'light_problem_too_little': "I need sunshine to photosynthesize, friend! I'm feeling dull. Please find me a brighter spot. 💡",
+            'fertilizer_reminder': "It's growing season! I'm hungry! A little fertilizer would make me super happy! 😋",
+            'pest_check': "Psst... could you check my leaves for any tiny uninvited houseguests? A little preventative peek goes a long way! 👀"
+        };
+
+        // Global variables for Firebase and state
+        let db, auth;
+        let userId;
+        let userPlants = []; 
+        let plantCollectionRef; 
+        let publicPlantLibrary = []; 
+        const PLANT_LIBRARY_COLLECTION = 'plant_library'; 
+        let tempAiPlantData = {}; 
+        let currentJournalPlantId = null; 
+        let currentDiagnosisPlantId = null; 
+        let currentFilter = 'all'; 
+        let currentSort = 'name_asc'; 
+        
+        // Gemini API Config
+        const apiKey = ""; 
+        const genAIApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // Get app-specific config from global variables
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // UI Elements
+        const loadingEl = document.getElementById('loading');
+        const appContentEl = document.getElementById('app-content');
+        const plantListEl = document.getElementById('plant-list');
+        const addPlantForm = document.getElementById('add-plant-form');
+        const plantTypeSelect = document.getElementById('plant-type');
+        const plantNicknameInput = document.getElementById('plant-nickname');
+        const plantLocationSelect = document.getElementById('plant-location'); 
+        const potSizeSelect = document.getElementById('pot-size');
+        const potMaterialSelect = document.getElementById('pot-material');
+        const noPlantsMessage = document.getElementById('no-plants-message');
+        const userIdDisplay = document.getElementById('user-id-display');
+
+        // AI ID UI Elements
+        const imageUploader = document.getElementById('image-uploader');
+        const imagePreview = document.getElementById('image-preview');
+        const aiLoading = document.getElementById('ai-loading');
+        const aiError = document.getElementById('ai-error');
+        const aiResultModal = document.getElementById('ai-result-modal');
+        const aiModalContent = document.getElementById('ai-modal-content');
+        const aiPlantName = document.getElementById('ai-plant-name');
+        const aiLightPref = document.getElementById('ai-light-pref');
+        const aiSoilPref = document.getElementById('ai-soil-pref');
+        const aiWaterFreq = document.getElementById('ai-water-freq');
+        const aiPlantNickname = document.getElementById('ai-plant-nickname');
+        const aiModalCancel = document.getElementById('ai-modal-cancel');
+        const aiModalAdd = document.getElementById('ai-modal-add');
+
+        // Filter/Sort UI
+        const filterPlantsSelect = document.getElementById('filter-plants');
+        const sortPlantsSelect = document.getElementById('sort-plants');
+        
+        // Journal Modal UI
+        const journalModal = document.getElementById('journal-modal');
+        const journalModalContent = document.getElementById('journal-modal-content');
+        const journalModalClose = document.getElementById('journal-modal-close');
+        const journalPlantName = document.getElementById('journal-plant-name');
+        const journalNoteInput = document.getElementById('journal-note-input');
+        const journalAddNote = document.getElementById('journal-add-note');
+        const journalLogRepot = document.getElementById('journal-log-repot');
+        const journalLogRotate = document.getElementById('journal-log-rotate');
+        const journalHistoryList = document.getElementById('journal-history-list');
+
+        // Diagnosis Modal UI
+        const diagnosisModal = document.getElementById('diagnosis-modal');
+        const diagnosisModalContent = document.getElementById('diagnosis-modal-content');
+        const diagnosisModalClose = document.getElementById('diagnosis-modal-close');
+        const diagnosisPlantName = document.getElementById('diagnosis-plant-name');
+        const diagnosisImageUploader = document.getElementById('diagnosis-image-uploader');
+        const diagnosisLoading = document.getElementById('diagnosis-loading');
+        const diagnosisImagePreview = document.getElementById('diagnosis-image-preview');
+        const diagnosisError = document.getElementById('diagnosis-error');
+        const diagnosisResult = document.getElementById('diagnosis-result');
+        const diagnosisProblem = document.getElementById('diagnosis-problem');
+        const diagnosisRemediation = document.getElementById('diagnosis-remediation');
+        
+        // Encyclopedia UI
+        const viewEncyclopediaBtn = document.getElementById('view-encyclopedia-btn');
+        const encyclopediaModal = document.getElementById('encyclopedia-modal');
+        const encyclopediaModalContent = document.getElementById('encyclopedia-modal-content');
+        const encyclopediaModalClose = document.getElementById('encyclopedia-modal-close');
+        const encyclopediaList = document.getElementById('encyclopedia-list');
+        const encyclopediaSearch = document.getElementById('encyclopedia-search');
+
+
+        // --- 2. HELPER FUNCTIONS ---
+
+        function formatDate(isoString) {
+            if (!isoString) return 'Never';
+            return new Date(isoString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        }
+        
+        function formatShortDate(isoString) {
+             if (!isoString) return 'Never';
+            return new Date(isoString).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function addDays(date, days) {
+            const result = new Date(date);
+            result.setDate(result.getDate() + days);
+            return result;
+        }
+
+        function getRandomPhrase(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+        
+        function formatLocation(key) {
+            if (!key) return 'Unknown';
+            key = key.toLowerCase();
+            if (key.includes('direct')) return '☀️ Direct Sun';
+            if (key.includes('bright_indirect') || key.includes('bright indirect')) return '🌤️ Bright Indirect';
+            if (key.includes('medium')) return '⛅ Medium Light';
+            if (key.includes('low')) return '☁️ Low Light';
+            return key;
+        }
+        
+        function formatPotSize(key) {
+            switch(key) {
+                case 'small': return 'S (2-4" pot)';
+                case 'medium': return 'M (5-8" pot)';
+                case 'large': return 'L (9"+ pot)';
+                default: return 'Unknown';
+            }
+        }
+        function formatPotMaterial(key) {
+            switch(key) {
+                case 'terracotta': return '🏺 Terracotta';
+                case 'ceramic': return '🧊 Ceramic/Glazed';
+                case 'plastic': return ' plastica';
+                default: return 'Unknown';
+            }
+        }
+        
+        async function fetchWithRetry(fetchCall, maxRetries = 3) {
+            let attempt = 0;
+            while (attempt < maxRetries) {
+                try {
+                    const response = await fetchCall();
+                    if (response.ok) {
+                        return response;
+                    }
+                    if (response.status === 429 || response.status >= 500) {
+                        throw new Error(`APIError: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    attempt++;
+                    if (attempt >= maxRetries) {
+                        throw error;
+                    }
+                    const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        
+        function isGrowingSeason() {
+            const month = new Date().getMonth(); // 0 (Jan) to 11 (Dec)
+            // April (3) through September (8)
+            return month >= 3 && month <= 8; 
+        }
+
+        function getNextWateringDate(plant) {
+            const lastWateredDate = new Date(plant.lastWatered);
+            let adjustedFrequency = plant.frequencyDays || 10;
+            
+            if (plant.potMaterial === 'terracotta') adjustedFrequency = Math.max(1, adjustedFrequency - 2); 
+            else if (plant.potMaterial === 'plastic') adjustedFrequency = adjustedFrequency + 2;
+            
+            if (plant.potSize === 'large') adjustedFrequency = adjustedFrequency + 3;
+            else if (plant.potSize === 'small') adjustedFrequency = Math.max(1, adjustedFrequency - 1);
+
+            if (!isGrowingSeason()) {
+                adjustedFrequency += 7; 
+            }
+            
+            return addDays(lastWateredDate, adjustedFrequency);
+        }
+        
+        function needsFertilizer(plant) {
+            if (!isGrowingSeason()) return false;
+            const lastFertilizedDate = new Date(plant.lastFertilized);
+            const nextFertilizerDate = addDays(lastFertilizedDate, 30); // 30 day interval
+            return new Date() > nextFertilizerDate;
+        }
+        
+        function needsHealthCheck(plant) {
+            const lastHealthCheckDate = new Date(plant.lastHealthCheck);
+            const nextHealthCheckDate = addDays(lastHealthCheckDate, 14); // 14 day interval
+            return new Date() > nextHealthCheckDate;
+        }
+
+
+        // --- 3. CORE APP LOGIC & RENDERING ---
+
+        function renderPlants() {
+            plantListEl.innerHTML = ''; 
+
+            let plantsToRender = [...userPlants];
+
+            // 1. FILTERING
+            const now = new Date();
+            if (currentFilter === 'needs_water') {
+                plantsToRender = plantsToRender.filter(p => now > getNextWateringDate(p));
+            } else if (currentFilter === 'needs_fertilizer') {
+                plantsToRender = plantsToRender.filter(p => needsFertilizer(p));
+            } else if (currentFilter === 'needs_health_check') {
+                plantsToRender = plantsToRender.filter(p => needsHealthCheck(p));
+            }
+            
+            // 2. SORTING
+            if (currentSort === 'name_asc') {
+                plantsToRender.sort((a, b) => a.nickname.localeCompare(b.nickname));
+            } else if (currentSort === 'next_watering') {
+                plantsToRender.sort((a, b) => getNextWateringDate(a) - getNextWateringDate(b));
+            }
+
+            if (plantsToRender.length === 0) {
+                noPlantsMessage.classList.remove('hidden');
+                noPlantsMessage.textContent = (currentFilter !== 'all') 
+                    ? `🎉 No plants match your filter! 🎉` 
+                    : `🌱 Start by adding your first plant friend above!`;
+                return;
+            }
+
+            noPlantsMessage.classList.add('hidden');
+
+            plantsToRender.forEach(plant => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-5 rounded-3xl shadow-lg border border-gray-100 transition-all hover:shadow-xl transform hover:-translate-y-1 flex flex-col';
+                
+                const nextWateringDate = getNextWateringDate(plant);
+                const isThirsty = now > nextWateringDate;
+
+                let statusText = `Next Drink: ${formatDate(nextWateringDate.toISOString())}`;
+                let statusColor = 'text-gray-500';
+                if (isThirsty) {
+                    statusText = '🚨 Thirsty! Water me now! 🚨';
+                    statusColor = 'text-red-500 font-bold animate-pulse';
+                }
+
+                const plantIcon = plant.icon || '🌿';
+                const preferredLight = plant.lightPreference;
+                const currentLight = plant.currentLocation;
+                
+                let lightWarning = '';
+                if (preferredLight && currentLight &&
+                    (
+                        (preferredLight.includes('low') && currentLight.includes('direct')) ||
+                        (preferredLight.includes('direct') && currentLight.includes('low'))
+                    )
+                ) {
+                    lightWarning = `<p class="text-sm text-pink-500 font-semibold mt-2">⚠️ Light Mismatch! Should be: ${formatLocation(preferredLight)}</p>`;
+                }
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <span class="text-3xl mr-2">${plantIcon}</span>
+                                <h3 class="text-xl font-bold text-green-700 inline-block">${plant.nickname}</h3>
+                            </div>
+                            <button data-id="${plant.id}" class="delete-plant text-gray-300 hover:text-red-500 transition-colors text-2xl font-light" title="Remove Plant">&times;</button>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-2">${plant.plantTypeName}</p>
+                        
+                        <div class="text-xs text-gray-700 space-y-2 mb-4 p-3 bg-blue-50 rounded-2xl border border-blue-200">
+                            <p>💡 Preferred Light: <span class="font-semibold text-blue-700">${formatLocation(preferredLight)}</span></p>
+                            <p>🪨 Recommended Soil: <span class="font-semibold text-blue-700">${plant.soilPreference || 'Standard mix'}</span></p>
+                            <p>🏺 Pot: <span class="font-semibold text-blue-700">${formatPotSize(plant.potSize)}, ${formatPotMaterial(plant.potMaterial)}</span></p>
+                        </div>
+
+                        <p class="text-sm text-gray-600 mb-2">Current Location: <span class="font-medium">${formatLocation(plant.currentLocation)}</span></p>
+                        ${lightWarning}
+                        
+                        <div class="space-y-2 mb-5 border-t border-b border-gray-100 py-3">
+                            <p class="text-sm text-gray-600">Last Drink: <span class="font-medium">${formatShortDate(plant.lastWatered)}</span></p>
+                            <p class="text-sm text-gray-600">Last Fed: <span class="font-medium">${formatShortDate(plant.lastFertilized)}</span></p>
+                            <p class="text-sm text-gray-600">Last Health Check: <span class="font-medium">${formatShortDate(plant.lastHealthCheck)}</span></p>
+                            <p class="text-base ${statusColor} mt-2 font-semibold">${statusText}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Button Group -->
+                    <div class="space-y-2 mt-auto">
+                        <button data-id="${plant.id}" class="water-plant w-full bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-2xl transition duration-300 shadow-md">
+                            Poured a drink! 💙
+                        </button>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button data-id="${plant.id}" class="fertilize-plant w-full bg-yellow-200 hover:bg-yellow-300 text-yellow-800 text-sm font-semibold py-2 px-3 rounded-2xl transition duration-300">
+                                😋 Fed Me!
+                            </button>
+                            <button data-id="${plant.id}" class="health-check-plant w-full bg-purple-100 hover:bg-purple-200 text-purple-800 text-sm font-semibold py-2 px-3 rounded-2xl transition duration-300">
+                                🩺 Health Check!
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button data-id="${plant.id}" data-name="${plant.nickname}" class="view-journal-btn w-full bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-3 rounded-2xl transition duration-300">
+                                📖 View Journal
+                            </button>
+                            <button data-id="${plant.id}" data-name="${plant.nickname}" class="get-diagnosis-btn w-full bg-pink-100 hover:bg-pink-200 text-pink-800 text-sm font-semibold py-2 px-3 rounded-2xl transition duration-300">
+                                🧑‍⚕️ Get Diagnosis
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                plantListEl.appendChild(card);
+            });
+
+            // Re-Add event listeners to ALL buttons
+            document.querySelectorAll('.water-plant').forEach(button => {
+                button.addEventListener('click', () => waterPlant(button.dataset.id));
+            });
+            document.querySelectorAll('.delete-plant').forEach(button => {
+                button.addEventListener('click', () => deletePlant(button.dataset.id));
+            });
+            document.querySelectorAll('.fertilize-plant').forEach(button => {
+                button.addEventListener('click', () => fertilizePlant(button.dataset.id));
+            });
+            document.querySelectorAll('.health-check-plant').forEach(button => {
+                button.addEventListener('click', () => checkPlantHealth(button.dataset.id));
+            });
+            document.querySelectorAll('.view-journal-btn').forEach(button => {
+                button.addEventListener('click', () => showJournalModal(button.dataset.id, button.dataset.name));
+            });
+            document.querySelectorAll('.get-diagnosis-btn').forEach(button => {
+                button.addEventListener('click', () => showDiagnosisModal(button.dataset.id, button.dataset.name));
+            });
+        }
+
+        function populatePlantOptions() {
+            plantTypeSelect.innerHTML = '';
+            
+            const sortedLibrary = [...publicPlantLibrary].sort((a, b) => a.name.localeCompare(b.name));
+            
+            sortedLibrary.forEach(plant => {
+                const option = document.createElement('option');
+                option.value = plant.key;
+                option.textContent = `${plant.icon} ${plant.name}`;
+                plantTypeSelect.appendChild(option);
+            });
+        }
+        
+        function getPlantDataByKey(key) {
+            return publicPlantLibrary.find(p => p.key === key);
+        }
+
+
+        // --- 4. FIREBASE CRUD & REAL-TIME ---
+
+        function fetchPlants(currentUserId) {
+            // User's private collection
+            plantCollectionRef = collection(db, 'artifacts', appId, 'users', currentUserId, 'plants');
+            
+            onSnapshot(plantCollectionRef, (snapshot) => {
+                userPlants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const now = new Date().toISOString();
+                userPlants = userPlants.map(plant => ({
+                    ...plant,
+                    lastHealthCheck: plant.lastHealthCheck || now,
+                    currentLocation: plant.currentLocation || 'medium_light',
+                    lastFertilized: plant.lastFertilized || now,
+                    potSize: plant.potSize || 'medium',
+                    potMaterial: plant.potMaterial || 'ceramic',
+                    icon: plant.icon || '🌿',
+                    lightPreference: plant.lightPreference || 'medium_light',
+                    soilPreference: plant.soilPreference || 'Standard potting mix',
+                    journal: plant.journal || [], 
+                    notificationSent: plant.notificationSent || false, 
+                    lightNotificationSent: plant.lightNotificationSent || false,
+                    healthNotificationSent: plant.healthNotificationSent || false,
+                    fertilizerNotificationSent: plant.fertilizerNotificationSent || false
+                }));
+                renderPlants(); 
+            }, (error) => {
+                console.error("Error fetching plants: ", error);
+            });
+        }
+        
+        async function fetchAndSeedPlantLibrary() {
+            try {
+                const libraryRef = collection(db, 'artifacts', appId, 'public', 'data', PLANT_LIBRARY_COLLECTION);
+                const snapshot = await getDocs(libraryRef);
+                
+                if (snapshot.empty) {
+                    console.log("Plant Library is empty. Seeding data...");
+                    for (const key in ENCYCLOPEDIA_SEED_DATA) {
+                        const plantData = ENCYCLOPEDIA_SEED_DATA[key];
+                        await setDoc(doc(libraryRef, key), plantData);
+                    }
+                    const seededSnapshot = await getDocs(libraryRef);
+                    publicPlantLibrary = seededSnapshot.docs.map(doc => doc.data());
+                } else {
+                    publicPlantLibrary = snapshot.docs.map(doc => doc.data());
+                }
+                
+                populatePlantOptions();
+
+            } catch (error) {
+                console.error("Error managing plant library: ", error);
+                publicPlantLibrary = Object.values(ENCYCLOPEDIA_SEED_DATA);
+                populatePlantOptions();
+            }
+        }
+
+        async function logJournalEntry(plantId, eventType, data = {}) {
+            const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plantId);
+            const newEntry = {
+                timestamp: new Date().toISOString(),
+                event: eventType,
+                ...data
+            };
+            
+            try {
+                await updateDoc(plantDocRef, {
+                    journal: arrayUnion(newEntry)
+                });
+            } catch (error) {
+                console.error("Error logging to journal: ", error);
+            }
+        }
+
+        async function handleAddPlant(e) {
+            e.preventDefault();
+            const plantTypeKey = plantTypeSelect.value;
+            const nickname = plantNicknameInput.value;
+            const currentLocation = plantLocationSelect.value; 
+            const potSize = potSizeSelect.value;
+            const potMaterial = potMaterialSelect.value;
+
+            if (!plantTypeKey || !nickname) return;
+
+            const plantInfo = getPlantDataByKey(plantTypeKey);
+            
+            if (!plantInfo) {
+                console.error(`Plant info not found for key: ${plantTypeKey}`);
+                return;
+            }
+            
+            const nowIso = new Date().toISOString();
+            
+            const newPlant = {
+                nickname: nickname,
+                plantTypeKey: plantTypeKey, 
+                plantTypeName: plantInfo.name,
+                frequencyDays: plantInfo.frequencyDays,
+                icon: plantInfo.icon,
+                lightPreference: plantInfo.lightPreference,
+                soilPreference: plantInfo.soilPreference,
+                lastWatered: nowIso, 
+                currentLocation: currentLocation, 
+                potSize: potSize,
+                potMaterial: potMaterial,
+                lastHealthCheck: nowIso, 
+                lastFertilized: nowIso, 
+                journal: [{ timestamp: nowIso, event: 'Adopted' }], 
+                notificationSent: false, 
+                lightNotificationSent: false,
+                healthNotificationSent: false,
+                fertilizerNotificationSent: false
+            };
+
+            try {
+                await addDoc(plantCollectionRef, newPlant);
+                plantNicknameInput.value = ''; 
+            } catch (error) {
+                console.error("Error adding plant: ", error);
+            }
+        }
+
+        async function waterPlant(plantId) {
+            try {
+                const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plantId);
+                await updateDoc(plantDocRef, {
+                    lastWatered: new Date().toISOString(),
+                    notificationSent: false 
+                });
+                logJournalEntry(plantId, 'Watered'); 
+            } catch (error) { console.error("Error watering plant: ", error); }
+        }
+        
+        async function fertilizePlant(plantId) {
+             try {
+                const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plantId);
+                await updateDoc(plantDocRef, {
+                    lastFertilized: new Date().toISOString(),
+                    fertilizerNotificationSent: false 
+                });
+                logJournalEntry(plantId, 'Fertilized'); 
+            } catch (error) { console.error("Error fertilizing plant: ", error); }
+        }
+        
+        async function checkPlantHealth(plantId) {
+             try {
+                const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plantId);
+                await updateDoc(plantDocRef, {
+                    lastHealthCheck: new Date().toISOString(),
+                    healthNotificationSent: false 
+                });
+                logJournalEntry(plantId, 'Health Check'); 
+            } catch (error) { console.error("Error checking plant health: ", error); }
+        }
+
+        async function deletePlant(plantId) {
+            try {
+                const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plantId);
+                await deleteDoc(plantDocRef);
+            } catch (error) { console.error("Error deleting plant: ", error); }
+        }
+
+
+        // --- 5. AI & MODAL LOGIC ---
+        
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            aiError.classList.add('hidden');
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imagePreview.src = event.target.result;
+                imagePreview.classList.remove('hidden');
+                resizeAndIdentify(event.target.result, 'identify');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        async function identifyPlant(base64Data) {
+            try {
+                const payload = {
+                    contents: [ { role: "user", parts: [
+                        { text: "Identify this plant and its core care needs from this image." },
+                        { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+                    ] } ],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT", properties: {
+                                "plantName": { "type": "STRING", "description": "The common name of the plant." },
+                                "plantTypeKey": { "type": "STRING", "description": "A single, lowercase, database-friendly key, e.g., 'monstera_deliciosa'." },
+                                "frequencyDays": { "type": "NUMBER", "description": "Average number of days between watering for this plant." },
+                                "lightPreference": { "type": "STRING", "description": "The ideal light, one of: 'direct_sun', 'bright_indirect', 'medium_light', 'low_light'." },
+                                "soilPreference": { "type": "STRING", "description": "A brief 1-5 word description of the ideal soil." },
+                                "icon": { "type": "STRING", "description": "A single emoji that best represents this plant." }
+                            },
+                            required: ["plantName", "plantTypeKey", "frequencyDays", "lightPreference", "soilPreference", "icon"]
+                        }
+                    }
+                };
+                
+                const response = await fetchWithRetry(() => fetch(genAIApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }));
+                if (!response.ok) throw new Error(`API failed with status ${response.status}`);
+                const result = await response.json();
+                if (!result.candidates || !result.candidates[0].content.parts[0].text) {
+                     throw new Error("Invalid response structure from API.");
+                }
+                const jsonString = result.candidates[0].content.parts[0].text;
+                const plantData = JSON.parse(jsonString);
+                
+                tempAiPlantData = plantData;
+                showAiResultModal(plantData);
+
+            } catch (error) {
+                console.error("Error identifying plant:", error);
+                aiError.textContent = "Oops! I couldn't identify that plant. Please try another photo.";
+                aiError.classList.remove('hidden');
+            } finally {
+                aiLoading.classList.add('hidden');
+                imageUploader.value = null; 
+            }
+        }
+        
+        function showAiResultModal(data) {
+            aiPlantName.textContent = data.plantName || "Unknown Plant";
+            aiLightPref.textContent = formatLocation(data.lightPreference);
+            aiSoilPref.textContent = data.soilPreference || "Standard mix";
+            aiWaterFreq.textContent = `About every ${data.frequencyDays || 10} days`;
+            aiPlantNickname.value = ''; 
+            aiResultModal.classList.remove('hidden');
+            setTimeout(() => {
+                aiModalContent.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+        
+        function hideAiResultModal() {
+            aiModalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                aiResultModal.classList.add('hidden');
+                imagePreview.classList.add('hidden'); 
+                imagePreview.src = '';
+            }, 300);
+        }
+        
+        async function handleAiPlantAdd() {
+            const nickname = aiPlantNickname.value;
+            if (!nickname || !tempAiPlantData) {
+                aiPlantNickname.classList.add('border-red-500');
+                return;
+            }
+            aiPlantNickname.classList.remove('border-red-500');
+
+            const nowIso = new Date().toISOString();
+            
+            const newPlant = {
+                nickname: nickname,
+                plantTypeKey: tempAiPlantData.plantTypeKey,
+                plantTypeName: tempAiPlantData.plantName,
+                frequencyDays: tempAiPlantData.frequencyDays,
+                icon: tempAiPlantData.icon,
+                lightPreference: tempAiPlantData.lightPreference,
+                soilPreference: tempAiPlantData.soilPreference,
+                lastWatered: nowIso, 
+                currentLocation: plantLocationSelect.value, 
+                potSize: potSizeSelect.value, 
+                potMaterial: potMaterialSelect.value,
+                lastHealthCheck: nowIso, 
+                lastFertilized: nowIso, 
+                journal: [{ timestamp: nowIso, event: 'Adopted' }], 
+                notificationSent: false, 
+                lightNotificationSent: false,
+                healthNotificationSent: false,
+                fertilizerNotificationSent: false
+            };
+
+            try {
+                await addDoc(plantCollectionRef, newPlant);
+                hideAiResultModal();
+                tempAiPlantData = {}; 
+            } catch (error) {
+                console.error("Error adding AI plant: ", error);
+                aiError.textContent = "Error saving plant to your greenhouse.";
+                aiError.classList.remove('hidden');
+            }
+        }
+
+        function resizeAndIdentify(dataUrl, mode) {
+            const img = new Image();
+            img.onload = () => {
+                const maxWidth = 512;
+                const scale = maxWidth / img.width;
+                const newWidth = img.width > maxWidth ? maxWidth : img.width;
+                const newHeight = img.width > maxWidth ? img.height * scale : img.height;
+                const canvas = document.createElement('canvas');
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                const base64Data = resizedDataUrl.split(',')[1];
+                
+                if (mode === 'identify') {
+                    aiLoading.classList.remove('hidden');
+                    identifyPlant(base64Data);
+                } else if (mode === 'diagnose') {
+                    diagnosisLoading.classList.remove('hidden');
+                    getPlantDiagnosis(base64Data);
+                }
+            };
+            img.src = dataUrl;
+        }
+        
+        // Journal Modal Logic
+        
+        function showJournalModal(plantId, plantName) {
+            currentJournalPlantId = plantId;
+            journalPlantName.textContent = plantName;
+            journalNoteInput.value = '';
+            
+            const plant = userPlants.find(p => p.id === plantId);
+            if (!plant || !plant.journal || plant.journal.length === 0) {
+                journalHistoryList.innerHTML = '<p class="text-gray-500">No history yet.</p>';
+            } else {
+                journalHistoryList.innerHTML = [...plant.journal].reverse().map(entry => {
+                    let entryHTML = `<p class="font-semibold text-gray-700">${entry.event}</p>`;
+                    if (entry.event === 'Note') {
+                        entryHTML += `<p class="text-gray-600 text-sm italic pl-2">"${entry.text}"</p>`;
+                    } else if (entry.event === 'Diagnosis') {
+                         entryHTML += `<p class="text-gray-600 text-sm italic pl-2">Problem: ${entry.problem}</p>`;
+                    }
+                    return `
+                        <div class="border-b border-gray-200 pb-2">
+                            <p class="text-xs text-gray-400 mb-1">${formatDate(entry.timestamp)}</p>
+                            ${entryHTML}
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            journalModal.classList.remove('hidden');
+            setTimeout(() => journalModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        function hideJournalModal() {
+            journalModalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => journalModal.classList.add('hidden'), 300);
+        }
+        
+        async function handleAddJournalNote() {
+            const text = journalNoteInput.value;
+            if (!text || !currentJournalPlantId) return;
+            await logJournalEntry(currentJournalPlantId, 'Note', { text: text });
+            const plant = userPlants.find(p => p.id === currentJournalPlantId);
+            showJournalModal(currentJournalPlantId, plant.nickname);
+        }
+        
+        async function handleLogRepot() {
+            if (!currentJournalPlantId) return;
+            await logJournalEntry(currentJournalPlantId, 'Repotted');
+            const plant = userPlants.find(p => p.id === currentJournalPlantId);
+            showJournalModal(currentJournalPlantId, plant.nickname);
+        }
+        
+        async function handleLogRotate() {
+            if (!currentJournalPlantId) return;
+            await logJournalEntry(currentJournalPlantId, 'Rotated');
+            const plant = userPlants.find(p => p.id === currentJournalPlantId);
+            showJournalModal(currentJournalPlantId, plant.nickname);
+        }
+        
+        // Diagnosis Modal Logic
+
+        function showDiagnosisModal(plantId, plantName) {
+            currentDiagnosisPlantId = plantId;
+            diagnosisPlantName.textContent = plantName;
+            
+            diagnosisImagePreview.classList.add('hidden');
+            diagnosisImagePreview.src = '';
+            diagnosisError.classList.add('hidden');
+            diagnosisResult.classList.add('hidden');
+            diagnosisImageUploader.value = null;
+            
+            diagnosisModal.classList.remove('hidden');
+            setTimeout(() => diagnosisModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+        
+        function hideDiagnosisModal() {
+            diagnosisModalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => diagnosisModal.classList.add('hidden'), 300);
+        }
+
+        function handleDiagnosisUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            diagnosisError.classList.add('hidden');
+            diagnosisResult.classList.add('hidden');
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                diagnosisImagePreview.src = event.target.result;
+                diagnosisImagePreview.classList.remove('hidden');
+                resizeAndIdentify(event.target.result, 'diagnose');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        async function getPlantDiagnosis(base64Data) {
+            try {
+                const payload = {
+                    contents: [ { role: "user", parts: [
+                        { text: "A user is providing a photo of a plant leaf that looks sick. Please identify the problem (e.g., 'Overwatering', 'Spider Mites', 'Fungal Infection') and provide a short, 2-3 sentence remediation plan." },
+                        { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+                    ] } ],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT", properties: {
+                                "problem": { "type": "STRING", "description": "The name of the diagnosed problem (e.g., 'Spider Mites')." },
+                                "remediation": { "type": "STRING", "description": "A 2-3 sentence remediation plan for the user to follow." }
+                            },
+                            required: ["problem", "remediation"]
+                        }
+                    }
+                };
+                
+                const response = await fetchWithRetry(() => fetch(genAIApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }));
+                if (!response.ok) throw new Error(`API failed with status ${response.status}`);
+                const result = await response.json();
+                if (!result.candidates || !result.candidates[0].content.parts[0].text) {
+                     throw new Error("Invalid response structure from API.");
+                }
+                const jsonString = result.candidates[0].content.parts[0].text;
+                const diagnosisData = JSON.parse(jsonString);
+                
+                diagnosisProblem.textContent = diagnosisData.problem;
+                diagnosisRemediation.textContent = diagnosisData.remediation;
+                diagnosisResult.classList.remove('hidden');
+                
+                logJournalEntry(currentDiagnosisPlantId, 'Diagnosis', {
+                    problem: diagnosisData.problem,
+                    remediation: diagnosisData.remediation
+                });
+
+            } catch (error) {
+                console.error("Error diagnosing plant:", error);
+                diagnosisError.textContent = "Oops! I couldn't diagnose that. Please try a clearer photo.";
+                diagnosisError.classList.remove('hidden');
+            } finally {
+                diagnosisLoading.classList.add('hidden');
+                diagnosisImageUploader.value = null; 
+            }
+        }
+        
+
+        // --- 6. NOTIFICATION LOGIC ---
+
+        function sendNotification(plant, title, body) {
+            if (Notification.permission !== 'granted') return; 
+            new Notification(title, {
+                body: body,
+                icon: plant.icon || '🌿'
+            });
+        }
+
+        function requestNotificationPermission() {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification("Plant Pal is active! kawaii-style!", {
+                            body: "I'll let you know when your plant friends need anything! (｡^‿^｡)"
+                        });
+                    }
+                });
+            }
+        }
+
+        async function checkHealthNeeds() {
+            if (!userId) return;
+
+            for (const plant of userPlants) {
+                // Light Mismatch Check
+                const preferredLight = plant.lightPreference;
+                const currentLight = plant.currentLocation;
+                let lightProblem = null;
+                if (preferredLight && currentLight) {
+                     if (preferredLight.includes('low') && currentLight.includes('direct')) {
+                        lightProblem = 'light_problem_too_much';
+                    } else if (preferredLight.includes('direct') && currentLight.includes('low')) {
+                        lightProblem = 'light_problem_too_little';
+                    }
+                }
+                if (lightProblem && !plant.lightNotificationSent) {
+                    sendNotification(plant, `${plant.nickname} needs your help!`, healthPhrases[lightProblem]);
+                    try {
+                        const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plant.id);
+                        await updateDoc(plantDocRef, { lightNotificationSent: true });
+                    } catch (error) { console.error("Error updating light notification status: ", error); }
+                }
+
+                // Health & Pest Check Reminder
+                if (needsHealthCheck(plant) && !plant.healthNotificationSent) {
+                    sendNotification(plant, `${plant.nickname} has a secret mission!`, healthPhrases.pest_check);
+                    try {
+                        const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plant.id);
+                        await updateDoc(plantDocRef, { healthNotificationSent: true });
+                    } catch (error) { console.error("Error updating health notification status: ", error); }
+                }
+
+                // Fertilizer Reminder
+                if (needsFertilizer(plant) && !plant.fertilizerNotificationSent) {
+                    sendNotification(plant, `${plant.nickname} is hungry!`, healthPhrases.fertilizer_reminder);
+                    try {
+                        const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plant.id);
+                        await updateDoc(plantDocRef, { fertilizerNotificationSent: true });
+                    } catch (error) { console.error("Error updating fertilizer notification status: ", error); }
+                }
+            }
+        }
+
+        async function checkWateringNeeds() {
+            if (!userId) return;
+            const now = new Date();
+            for (const plant of userPlants) {
+                const nextWateringDate = getNextWateringDate(plant);
+                const isThirsty = now > nextWateringDate;
+
+                if (isThirsty && !plant.notificationSent) {
+                    console.log(`Sending watering notification for ${plant.nickname}`);
+                    const body = getRandomPhrase(cutePhrases);
+                    sendNotification(plant, `${plant.nickname} says:`, body);
+                    try {
+                        const plantDocRef = doc(db, 'artifacts', appId, 'users', userId, 'plants', plant.id);
+                        await updateDoc(plantDocRef, { notificationSent: true });
+                    } catch (error) { console.error("Error updating watering notification status: ", error); }
+                }
+            }
+        }
+        
+        // --- 7. Encyclopedia Modal Logic ---
+        
+        function showEncyclopediaModal() {
+            renderEncyclopediaList(publicPlantLibrary);
+            
+            encyclopediaModal.classList.remove('hidden');
+            setTimeout(() => encyclopediaModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        function hideEncyclopediaModal() {
+            encyclopediaModalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => encyclopediaModal.classList.add('hidden'), 300);
+        }
+        
+        function renderEncyclopediaList(plants) {
+            encyclopediaList.innerHTML = ''; 
+            const searchTerm = encyclopediaSearch.value.toLowerCase();
+            
+            let filteredPlants = plants.filter(plant => 
+                plant.name.toLowerCase().includes(searchTerm) ||
+                plant.description.toLowerCase().includes(searchTerm) ||
+                plant.soilPreference.toLowerCase().includes(searchTerm)
+            ).sort((a, b) => a.name.localeCompare(b.name));
+            
+            if (filteredPlants.length === 0) {
+                 encyclopediaList.innerHTML = '<p class="text-center text-gray-500 p-8">No plants found matching your search. Try "succulent" or "low light".</p>';
+                return;
+            }
+
+            filteredPlants.forEach(plant => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-50 p-4 rounded-2xl shadow-md border-l-4 border-blue-300 hover:bg-gray-100 transition duration-150';
+                
+                card.innerHTML = `
+                    <div class="flex items-center mb-2">
+                        <span class="text-3xl mr-3">${plant.icon}</span>
+                        <h3 class="text-xl font-bold text-blue-800">${plant.name}</h3>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-3">${plant.description}</p>
+                    
+                    <div class="grid grid-cols-2 text-xs gap-2 border-t border-gray-200 pt-3">
+                        <p>💡 Light: <span class="font-semibold text-blue-700">${formatLocation(plant.lightPreference)}</span></p>
+                        <p>💧 Water Freq: <span class="font-semibold text-blue-700">Every ${plant.frequencyDays} days</span></p>
+                        <p>🪨 Soil: <span class="font-semibold text-blue-700">${plant.soilPreference}</span></p>
+                        <p>⚠️ Common Problems: <span class="font-semibold text-blue-700">${plant.commonProblems.join(', ')}</span></p>
+                    </div>
+                `;
+                encyclopediaList.appendChild(card);
+            });
+        }
+        
+        // --- 8. INITIALIZATION ---
+        
+        async function initializeAppLogic() {
+            if (!firebaseConfig.apiKey) {
+                console.error("Firebase config is missing!");
+                loadingEl.innerHTML = '<p class="text-red-400">Error: Firebase configuration is missing. Cannot load app.</p>';
+                return;
+            }
+
+            try {
+                // Init Firebase
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('Debug'); 
+                
+                // Auth
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        
+                        await fetchAndSeedPlantLibrary();
+                        
+                        fetchPlants(userId);
+                        
+                        loadingEl.classList.add('hidden');
+                        appContentEl.classList.remove('hidden');
+                    } else {
+                        userId = null;
+                        loadingEl.classList.remove('hidden');
+                        appContentEl.classList.add('hidden');
+                        loadingEl.innerHTML = '<p class="text-yellow-400">Authenticating...</p>';
+                    }
+                });
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Static parts
+                requestNotificationPermission();
+
+                // Form listeners
+                addPlantForm.addEventListener('submit', handleAddPlant);
+                
+                // AI ID Listeners
+                imageUploader.addEventListener('change', handleImageUpload);
+                aiModalCancel.addEventListener('click', hideAiResultModal);
+                aiModalAdd.addEventListener('click', handleAiPlantAdd);
+                
+                // Filter/Sort Listeners
+                filterPlantsSelect.addEventListener('change', (e) => {
+                    currentFilter = e.target.value;
+                    renderPlants();
+                });
+                sortPlantsSelect.addEventListener('change', (e) => {
+                    currentSort = e.target.value;
+                    renderPlants();
+                });
+                
+                // Journal Modal Listeners
+                journalModalClose.addEventListener('click', hideJournalModal);
+                journalAddNote.addEventListener('click', handleAddJournalNote);
+                journalLogRepot.addEventListener('click', handleLogRepot);
+                journalLogRotate.addEventListener('click', handleLogRotate);
+
+                // Diagnosis Modal Listeners
+                diagnosisModalClose.addEventListener('click', hideDiagnosisModal);
+                diagnosisImageUploader.addEventListener('change', handleDiagnosisUpload);
+                
+                // Encyclopedia Listeners
+                viewEncyclopediaBtn.addEventListener('click', showEncyclopediaModal);
+                encyclopediaModalClose.addEventListener('click', hideEncyclopediaModal);
+                encyclopediaSearch.addEventListener('input', () => renderEncyclopediaList(publicPlantLibrary));
+
+
+                // Start background checkers
+                setInterval(checkWateringNeeds, 30000); 
+                setInterval(checkHealthNeeds, 300000); 
+
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                loadingEl.innerHTML = `<p class="text-red-400">Error initializing app: ${error.message}</p>`;
+            }
+        }
+
+        // Run the app
+        document.addEventListener('DOMContentLoaded', initializeAppLogic);
+
+    </script>
+</body>
+</html>

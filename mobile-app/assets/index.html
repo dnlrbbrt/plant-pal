@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Pal</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Nunito font (rounded, bubbly, kawaii!) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* Use Nunito font */
+        body {
+            font-family: 'Nunito', sans-serif;
+        }
+
+        /* Simple loading spinner - updated color */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #60a5fa;
+            /* Blue-400 for kawaii theme */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Custom scrollbar for a more app-like feel - updated for kawaii theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #fdf2f8;
+            /* pink-50 */
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #fbcfe8;
+            /* pink-200 */
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f472b6;
+            /* pink-400 */
+        }
+
+        /* Hide file input */
+        #image-uploader,
+        #diagnosis-image-uploader {
+            display: none;
+        }
+
+        /* Care action animations */
+        @keyframes floatUp {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: translateY(-30px) scale(1.2);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translateY(-60px) scale(0.8);
+                opacity: 0;
+            }
+        }
+
+        @keyframes sparkle {
+
+            0%,
+            100% {
+                transform: scale(0) rotate(0deg);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1) rotate(180deg);
+                opacity: 1;
+            }
+        }
+
+        .care-emoji {
+            position: absolute;
+            font-size: 2rem;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 1000;
+        }
+
+        .sparkle-emoji {
+            position: absolute;
+            font-size: 1.5rem;
+            pointer-events: none;
+            animation: sparkle 0.6s ease-out forwards;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body class="bg-pink-50 text-gray-800 h-full flex flex-col">
+
+    <!-- Header - Kawaii theme -->
+    <header class="bg-white shadow-lg sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-pink-500">🪴 Plant Pal <span class="text-blue-400">🌸</span></h1>
+            <button id="view-encyclopedia-btn"
+                class="bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-2xl shadow-md transition duration-300 text-sm md:text-base">
+                📚 Plant Library
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-4xl mx-auto p-4 md:p-8 w-full">
+
+        <!-- Loading State -->
+        <div id="loading" class="flex flex-col items-center justify-center p-10">
+            <div class="loader"></div>
+            <p class="mt-4 text-lg text-gray-500 font-semibold">Waking up the plants...</p>
+        </div>
+
+        <!-- Main App Content (Hidden by default) -->
+        <div id="app-content" class="hidden">
+
+            <!-- AI Identification Section -->
+            <section id="ai-plant-form-section"
+                class="bg-white p-6 rounded-3xl shadow-xl mb-8 border-t-4 border-pink-400">
+                <h2 class="text-2xl font-bold mb-4 text-pink-600">Plant Identifier</h2>
+                <p class="text-gray-600 mb-4">Don't know your new friend? Upload a photo and I'll find out! (Demo:
+                    Returns a mock result)</p>
+
+                <!-- File Uploader -->
+                <input type="file" id="image-uploader" accept="image/*">
+                <label for="image-uploader"
+                    class="w-full cursor-pointer bg-pink-400 hover:bg-pink-500 text-white font-bold py-3 px-5 rounded-2xl transition duration-300 shadow-lg inline-block text-center">
+                    Upload a Photo 📸
+                </label>
+
+                <!-- AI Loading and Preview Area -->
+                <div id="ai-status-area" class="mt-4 text-center">
+                    <!-- AI Loading Spinner -->
+                    <div id="ai-loading" class="hidden flex flex-col items-center justify-center p-4">
+                        <div class="loader !border-t-pink-500"></div>
+                        <p class="mt-2 text-lg text-gray-500 font-semibold">Thinking... (｡•́‿•̀｡)</p>
+                    </div>
+                    <!-- Image Preview -->
+                    <img id="image-preview" src="" class="hidden max-h-60 mx-auto rounded-2xl shadow-md mt-4"
+                        alt="Image preview" />
+                    <!-- AI Error Message -->
+                    <p id="ai-error" class="hidden text-red-500 font-semibold"></p>
+                </div>
+            </section>
+
+            <!-- Add Plant Form - Kawaii theme -->
+            <section id="add-plant-form-section"
+                class="bg-white p-6 rounded-3xl shadow-xl mb-8 border-t-4 border-blue-300">
+                <h2 class="text-2xl font-bold mb-4 text-blue-600">Add a Plant Friend (Manual) 💌</h2>
+                <form id="add-plant-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                    <!-- Column 1 -->
+                    <div class="flex flex-col justify-end space-y-4">
+                        <div>
+                            <label for="plant-type" class="block text-sm font-semibold text-gray-700 mb-1">Plant Type
+                                (from list)</label>
+                            <select id="plant-type" name="plant-type"
+                                class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="plant-nickname"
+                                class="block text-sm font-semibold text-gray-700 mb-1">Nickname</label>
+                            <input type="text" id="plant-nickname" name="plant-nickname"
+                                class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="e.g., Shelly the Succulent" required>
+                        </div>
+                        <div>
+                            <label for="plant-personality"
+                                class="block text-sm font-semibold text-gray-700 mb-1">Personality 🎭</label>
+                            <select id="plant-personality" name="plant-personality"
+                                class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="sweet">🌸 Sweet & Gentle</option>
+                                <option value="sassy">💅 Sassy & Dramatic</option>
+                                <option value="chill">😎 Chill & Zen</option>
+                                <option value="nerdy">🤓 Scientific & Nerdy</option>
+                                <option value="poetic">🎭 Poetic & Romantic</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Column 2 -->
+                    <div class="flex flex-col justify-end space-y-4">
+                        <div>
+                            <label for="plant-location" class="block text-sm font-semibold text-gray-700 mb-1">Default
+                                Location (Light)</label>
+                            <select id="plant-location" name="plant-location"
+                                class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="direct_sun">☀️ Direct Sun</option>
+                                <option value="bright_indirect">🌤️ Bright Indirect Light</option>
+                                <option value="medium_light" selected>⛅ Medium Light</option>
+                                <option value="low_light">☁️ Low Light</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="pot-size" class="block text-sm font-semibold text-gray-700 mb-1">Default Pot
+                                Size</label>
+                            <select id="pot-size" name="pot-size"
+                                class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="small">S (2-4" pot)</option>
+                                <option value="medium" selected>M (5-8" pot)</option>
+                                <option value="large">L (9"+ pot)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Column 3 -->
+                    <div class="flex flex-col justify-end space-y-4">
+                        <div>
+                            <label for="pot-material" class="block text-sm font-semibold text-gray-700 mb-1">Default Pot
+                                Material</label>
+                            <select id="pot-material" name="pot-material"
+                                class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="terracotta">🏺 Terracotta (dries fast)</option>
+                                <option value="ceramic" selected>🧊 Ceramic / Glazed (avg)</option>
+                                <option value="plastic"> plastica (holds moisture)</option>
+                            </select>
+                        </div>
+
+                        <!-- Environment Inputs (New) -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label for="env-humidity"
+                                    class="block text-xs font-semibold text-gray-700 mb-1">Humidity</label>
+                                <select id="env-humidity"
+                                    class="w-full bg-gray-50 border border-gray-300 text-gray-700 rounded-xl p-2 text-sm">
+                                    <option value="low">Dry (Low)</option>
+                                    <option value="avg" selected>Avg</option>
+                                    <option value="high">Humid</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="env-temp"
+                                    class="block text-xs font-semibold text-gray-700 mb-1">Temp</label>
+                                <select id="env-temp"
+                                    class="w-full bg-gray-50 border border-gray-300 text-gray-700 rounded-xl p-2 text-sm">
+                                    <option value="cool">Cool (<65F)< /option>
+                                    <option value="avg" selected>Avg</option>
+                                    <option value="warm">Warm (>75F)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="flex items-end">
+                            <button type="submit"
+                                class="w-full bg-green-400 hover:bg-green-500 text-white font-bold py-3 px-5 rounded-2xl transition duration-300 shadow-lg h-fit">
+                                Add Manually
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- My Plants List -->
+            <section>
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-green-600">My Little Plant Family ♡</h2>
+
+                    <!-- Filter and Sort Controls -->
+                    <div class="flex space-x-2 mt-4 md:mt-0">
+                        <select id="filter-plants"
+                            class="bg-white border border-gray-300 text-gray-700 rounded-2xl p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="all">Show All</option>
+                            <option value="needs_water">Needs Water!</option>
+                            <option value="needs_fertilizer">Needs Food!</option>
+                            <option value="needs_health_check">Needs Checkup!</option>
+                        </select>
+                        <select id="sort-plants"
+                            class="bg-white border border-gray-300 text-gray-700 rounded-2xl p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="name_asc">Sort by Name (A-Z)</option>
+                            <option value="next_watering">Sort by Next Watering</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="plant-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Plant cards will be populated here -->
+                    <p id="no-plants-message"
+                        class="text-gray-500 text-center md:col-span-2 lg:col-span-3 p-6 bg-white rounded-3xl shadow-inner">
+                        🌱 Start by adding your first plant friend above!
+                    </p>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- Footer / Notification Info -->
+    <footer class="bg-white text-gray-400 text-center p-4 mt-8 text-xs border-t border-gray-200">
+        <p>Your User ID: <strong id="user-id-display" class="text-gray-600">Loading...</strong></p>
+        <p class="mt-2">
+            <strong>Note:</strong> This is a <strong class="text-pink-500">demo version</strong>.
+            Data is saved effectively to your browser's local storage.
+        </p>
+    </footer>
+
+    <!-- MODALS -->
+
+    <!-- AI Result Modal -->
+    <div id="ai-result-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md transform transition-all duration-300 scale-95 opacity-0"
+            id="ai-modal-content">
+            <h2 class="text-2xl font-bold text-center text-pink-600">🌿 I found your plant! 🌿</h2>
+            <div class="text-center my-4 p-4 bg-gray-100 rounded-2xl">
+                <h3 id="ai-plant-name" class="text-xl font-bold text-gray-800"></h3>
+            </div>
+            <div class="text-sm text-gray-700 space-y-2 mb-4 p-3 bg-blue-50 rounded-2xl border border-blue-200">
+                <p>💡 Preferred Light: <span id="ai-light-pref" class="font-semibold text-blue-700"></span></p>
+                <p>🪨 Recommended Soil: <span id="ai-soil-pref" class="font-semibold text-blue-700"></span></p>
+                <p>💧 Watering: <span id="ai-water-freq" class="font-semibold text-blue-700"></span></p>
+            </div>
+            <div class="mt-4">
+                <label for="ai-plant-nickname" class="block text-sm font-semibold text-gray-700 mb-1">Give your new
+                    friend a name:</label>
+                <input type="text" id="ai-plant-nickname" name="ai-plant-nickname"
+                    class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., Peter the Pothos" required>
+            </div>
+            <div class="mt-6 grid grid-cols-2 gap-4">
+                <button id="ai-modal-cancel"
+                    class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-2xl transition duration-300">
+                    Cancel
+                </button>
+                <button id="ai-modal-add"
+                    class="w-full bg-pink-400 hover:bg-pink-500 text-white font-bold py-2 px-4 rounded-2xl transition duration-300">
+                    Add to Greenhouse
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plant Journal Modal -->
+    <div id="journal-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-lg transform transition-all duration-300 scale-95 opacity-0"
+            id="journal-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-green-600">Plant Journal: <span id="journal-plant-name"></span></h2>
+                <button id="journal-modal-close"
+                    class="text-gray-400 hover:text-gray-600 text-3xl font-light">&times;</button>
+            </div>
+
+            <!-- Log New Entry -->
+            <div class="mb-4">
+                <h3 class="text-lg font-semibold mb-2 text-gray-700">Log a new entry:</h3>
+                <div class="flex space-x-2 mb-2">
+                    <input type="text" id="journal-note-input"
+                        class="flex-grow bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Add a note (e.g., 'New leaf!')">
+                    <button id="journal-add-note"
+                        class="bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-2xl transition duration-300">Save</button>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="journal-log-repot"
+                        class="flex-1 bg-yellow-200 hover:bg-yellow-300 text-yellow-800 text-sm font-semibold py-2 px-3 rounded-2xl transition duration-300">Log
+                        Repotting 🏺</button>
+                    <button id="journal-log-rotate"
+                        class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 text-sm font-semibold py-2 px-3 rounded-2xl transition duration-300">Log
+                        Rotation 🔄</button>
+                </div>
+            </div>
+
+            <!-- History -->
+            <h3 class="text-lg font-semibold mb-2 text-gray-700">History:</h3>
+            <div id="journal-history-list"
+                class="h-64 overflow-y-auto bg-gray-50 p-3 rounded-2xl border border-gray-200 space-y-3">
+                <!-- Journal entries will be populated here -->
+                <p class="text-gray-500">No history yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plant Diagnosis Modal -->
+    <div id="diagnosis-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md transform transition-all duration-300 scale-95 opacity-0"
+            id="diagnosis-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-pink-600">🩺 Plant Doctor! 🩺</h2>
+                <button id="diagnosis-modal-close"
+                    class="text-gray-400 hover:text-gray-600 text-3xl font-light">&times;</button>
+            </div>
+            <p class="text-gray-600 mb-4">What's wrong with <span id="diagnosis-plant-name" class="font-bold"></span>?
+                Upload a close-up photo of the problem (e.g., a single leaf).</p>
+
+            <input type="file" id="diagnosis-image-uploader" accept="image/*">
+            <label for="diagnosis-image-uploader"
+                class="w-full cursor-pointer bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-4 rounded-2xl transition duration-300 shadow-lg inline-block text-center">
+                Upload Problem Photo 📸
+            </label>
+
+            <div id="diagnosis-status-area" class="mt-4 text-center">
+                <!-- AI Loading Spinner -->
+                <div id="diagnosis-loading" class="hidden flex flex-col items-center justify-center p-4">
+                    <div class="loader !border-t-pink-500"></div>
+                    <p class="mt-2 text-lg text-gray-500 font-semibold">Diagnosing the ouchie... (Demo)</p>
+                </div>
+                <!-- Image Preview -->
+                <img id="diagnosis-image-preview" src="" class="hidden max-h-60 mx-auto rounded-2xl shadow-md mt-4"
+                    alt="Diagnosis preview" />
+                <!-- AI Error Message -->
+                <p id="diagnosis-error" class="hidden text-red-500 font-semibold"></p>
+
+                <!-- Diagnosis Result -->
+                <div id="diagnosis-result" class="hidden text-left mt-4 p-4 bg-gray-100 rounded-2xl">
+                    <h3 class="text-lg font-bold text-gray-800">Diagnosis: <span id="diagnosis-problem"
+                            class="text-red-600"></span></h3>
+                    <p class="text-gray-700 mt-2">Recommended Plan:</p>
+                    <p id="diagnosis-remediation" class="text-gray-700 text-sm"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pest Identification Modal (New) -->
+    <div id="pest-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md transform transition-all duration-300 scale-95 opacity-0"
+            id="pest-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-red-500">🕷️ Pest Detective! 🔎</h2>
+                <button id="pest-modal-close"
+                    class="text-gray-400 hover:text-gray-600 text-3xl font-light">&times;</button>
+            </div>
+            <p class="text-gray-600 mb-4">Found a creeper on <span id="pest-plant-name" class="font-bold"></span>? Snap
+                a pic and I'll identify the intruder!</p>
+
+            <input type="file" id="pest-image-uploader" accept="image/*" class="hidden">
+            <label for="pest-image-uploader"
+                class="w-full cursor-pointer bg-red-400 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-2xl transition duration-300 shadow-lg inline-block text-center">
+                Upload Bug Photo 📸
+            </label>
+
+            <div id="pest-status-area" class="mt-4 text-center">
+                <div id="pest-loading" class="hidden flex flex-col items-center justify-center p-4">
+                    <div class="loader !border-t-red-500"></div>
+                    <p class="mt-2 text-lg text-gray-500 font-semibold">Scanning for bugs... (Demo)</p>
+                </div>
+                <img id="pest-image-preview" src="" class="hidden max-h-60 mx-auto rounded-2xl shadow-md mt-4"
+                    alt="Pest preview" />
+
+                <div id="pest-result" class="hidden text-left mt-4 p-4 bg-red-50 rounded-2xl border border-red-100">
+                    <h3 class="text-lg font-bold text-red-800">It's <span id="pest-name"></span>!</h3>
+                    <p class="text-gray-700 mt-2 font-semibold">Battle Plan:</p>
+                    <p id="pest-treatment" class="text-gray-700 text-sm"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Encyclopedia Modal -->
+    <div id="encyclopedia-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-2xl h-[90vh] transform transition-all duration-300 scale-95 opacity-0 flex flex-col"
+            id="encyclopedia-modal-content">
+
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-2xl font-bold text-blue-600">📚 Plant Library (So much to learn!)</h2>
+                <button id="encyclopedia-modal-close"
+                    class="text-gray-400 hover:text-gray-600 text-3xl font-light">&times;</button>
+            </div>
+
+            <!-- Search -->
+            <input type="text" id="encyclopedia-search" placeholder="Search by name or keyword..."
+                class="w-full bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl p-3 mb-4 focus:ring-blue-500 focus:border-blue-500">
+
+            <!-- Plant List -->
+            <div id="encyclopedia-list" class="flex-grow overflow-y-auto space-y-4 pr-2">
+                <!-- Encyclopedia entries will be populated here -->
+                <div id="encyclopedia-loading" class="flex flex-col items-center justify-center p-10">
+                    <div class="loader !border-t-blue-500"></div>
+                    <p class="mt-4 text-lg text-gray-500 font-semibold">Loading the library...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Supabase Client (Commented out to bypass CDN hang and enable demo mode) -->
+    <!-- <script src="https://unpkg.com/@supabase/supabase-js@2"></script> -->
+    <script src="app.js"></script>
+</body>
+
+</html>
