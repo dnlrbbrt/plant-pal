@@ -1,4 +1,8 @@
 
+// DEBUG - Proof of life
+console.log("App.js is running!");
+// alert("App.js is running!"); // Uncomment if console is hard to see
+
 // --- 1. CONFIGURATION ---
 
 const ENCYCLOPEDIA_SEED_DATA = {
@@ -156,7 +160,7 @@ const pestDatabase = {
 // Supabase Configuration
 const supabaseUrl = 'https://hbbwkdaojhjyjbzvwgel.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiYndrZGFvamhqeWpienZ3Z2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNTM3ODgsImV4cCI6MjA4MzkyOTc4OH0.n_Ho4p3KWe5GBuCOpP4qkPl4XgXqGiNqL4_CUQJhzg8';
-const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+const sb = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
 // Global variables for State
 let userId;
@@ -242,6 +246,15 @@ const pestResult = document.getElementById('pest-result');
 const pestNameDisplay = document.getElementById('pest-name');
 const pestTreatmentDisplay = document.getElementById('pest-treatment');
 
+// Auth UI Elements
+const authContainer = document.getElementById('auth-container');
+const loginForm = document.getElementById('login-form');
+const signupForm = document.getElementById('signup-form');
+const toggleAuthBtn = document.getElementById('toggle-auth-mode');
+const authMessage = document.getElementById('auth-message');
+const signOutBtn = document.getElementById('sign-out-btn');
+const userEmailDisplay = document.getElementById('user-email-display');
+
 // Encyclopedia UI
 const viewEncyclopediaBtn = document.getElementById('view-encyclopedia-btn');
 const encyclopediaModal = document.getElementById('encyclopedia-modal');
@@ -251,7 +264,73 @@ const encyclopediaList = document.getElementById('encyclopedia-list');
 const encyclopediaSearch = document.getElementById('encyclopedia-search');
 
 
-// --- 2. HELPER FUNCTIONS ---
+// --- 2. AUTHENTICATION ---
+
+let isSignUpMode = false;
+
+function toggleAuthMode() {
+    isSignUpMode = !isSignUpMode;
+    if (isSignUpMode) {
+        loginForm.classList.add('hidden');
+        signupForm.classList.remove('hidden');
+        toggleAuthBtn.innerHTML = 'Already have an account? <span class="text-blue-500 font-bold">Log In</span>';
+    } else {
+        loginForm.classList.remove('hidden');
+        signupForm.classList.add('hidden');
+        toggleAuthBtn.innerHTML = 'Don\'t have an account? <span class="text-green-600 font-bold">Sign Up</span>';
+    }
+    authMessage.classList.add('hidden');
+}
+
+function showAuthMessage(msg, isError = true) {
+    authMessage.textContent = msg;
+    authMessage.className = `mt-4 p-3 rounded-xl text-center text-sm ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+    authMessage.classList.remove('hidden');
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+
+    showAuthMessage("Logging in...", false);
+
+    const { data, error } = await sb.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
+
+    if (error) {
+        showAuthMessage(error.message, true);
+    } else {
+        // success handled by onAuthStateChange
+    }
+}
+
+async function handleSignUp(e) {
+    e.preventDefault();
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+
+    showAuthMessage("Creating account...", false);
+
+    const { data, error } = await sb.auth.signUp({
+        email: email,
+        password: password
+    });
+
+    if (error) {
+        showAuthMessage(error.message, true);
+    } else {
+        showAuthMessage("Success! Check your email to confirm.", false);
+    }
+}
+
+async function handleSignOut() {
+    const { error } = await sb.auth.signOut();
+    if (error) console.error('Sign Out Error:', error);
+    // UI update handled by onAuthStateChange
+}
 
 function formatDate(isoString) {
     if (!isoString) return 'Never';
@@ -618,7 +697,7 @@ function getPlantDataByKey(key) {
 
 async function fetchPlants() {
     try {
-        if (!supabase) {
+        if (!sb) {
             console.error("Supabase not initialized");
             userPlants = [];
             renderPlants();
@@ -1159,21 +1238,21 @@ async function checkHealthNeeds() {
 
             plant.light_notification_sent = true;
             // DB Update
-            supabase.from('plants').update({ light_notification_sent: true }).eq('id', plant.id).then();
+            sb.from('plants').update({ light_notification_sent: true }).eq('id', plant.id).then();
         }
 
         if (needsFertilizer(plant) && !plant.fertilizer_notification_sent) {
             const message = getPersonalityMessage(plant, 'fertilizer');
             sendNotification(plant, `${plant.nickname} says:`, message);
             plant.fertilizer_notification_sent = true;
-            supabase.from('plants').update({ fertilizer_notification_sent: true }).eq('id', plant.id).then();
+            sb.from('plants').update({ fertilizer_notification_sent: true }).eq('id', plant.id).then();
         }
 
         if (needsMisting(plant) && !plant.misting_notification_sent) {
             const message = getPersonalityMessage(plant, 'misting');
             sendNotification(plant, `${plant.nickname} says:`, message);
             plant.misting_notification_sent = true;
-            supabase.from('plants').update({ misting_notification_sent: true }).eq('id', plant.id).then();
+            sb.from('plants').update({ misting_notification_sent: true }).eq('id', plant.id).then();
         }
     }
 }
@@ -1188,7 +1267,7 @@ async function checkWateringNeeds() {
             const message = getPersonalityMessage(plant, 'thirsty');
             sendNotification(plant, `${plant.nickname} says:`, message);
             plant.notification_sent = true;
-            supabase.from('plants').update({ notification_sent: true }).eq('id', plant.id).then();
+            sb.from('plants').update({ notification_sent: true }).eq('id', plant.id).then();
         }
     }
 }
@@ -1243,68 +1322,126 @@ function renderEncyclopediaList(plants) {
 
 // --- 10. INITIALIZATION ---
 
-async function initializeAppLogic() {
+async function initializeAppLogic(user) {
     try {
-        userId = 'demo-user-supabase';
-        userIdDisplay.textContent = userId;
+        if (!user) throw new Error("No user provided to init logic");
+        userId = user.id;
+        if (userEmailDisplay) {
+            userEmailDisplay.textContent = user.email;
+            userEmailDisplay.classList.remove('hidden');
+        }
 
         await fetchAndSeedPlantLibrary();
-        await fetchPlants(); // Now calls Supabase
+        await fetchPlants(); // Now calls Supabase with RLS (eventually)
 
         // Static parts
         requestNotificationPermission();
 
-        // Form listeners
-        addPlantForm.addEventListener('submit', handleAddPlant);
+        // Note: Event listeners are now set up in init() to avoid duplication on re-login
+        // We only start background checkers here
 
-        // AI ID Listeners
-        imageUploader.addEventListener('change', handleImageUpload);
-        aiModalCancel.addEventListener('click', hideAiResultModal);
-        aiModalAdd.addEventListener('click', handleAiPlantAdd);
-
-        // Filter/Sort Listeners
-        filterPlantsSelect.addEventListener('change', (e) => {
-            currentFilter = e.target.value;
-            renderPlants();
-        });
-        sortPlantsSelect.addEventListener('change', (e) => {
-            currentSort = e.target.value;
-            renderPlants();
-        });
-
-        // Journal Modal Listeners
-        journalModalClose.addEventListener('click', hideJournalModal);
-        journalAddNote.addEventListener('click', handleAddJournalNote);
-        journalLogRepot.addEventListener('click', handleLogRepot);
-        journalLogRotate.addEventListener('click', handleLogRotate);
-
-        // Diagnosis Modal Listeners
-        diagnosisModalClose.addEventListener('click', hideDiagnosisModal);
-        diagnosisImageUploader.addEventListener('change', handleDiagnosisUpload);
-
-        // Pest Modal Listeners
-        pestModalClose.addEventListener('click', hidePestModal);
-        pestImageUploader.addEventListener('change', handlePestUpload);
-
-        // Encyclopedia Listeners
-        viewEncyclopediaBtn.addEventListener('click', showEncyclopediaModal);
-        encyclopediaModalClose.addEventListener('click', hideEncyclopediaModal);
-        encyclopediaSearch.addEventListener('input', () => renderEncyclopediaList(publicPlantLibrary));
-
-        // Start background checkers
+        // Clear existing intervals if restarting (simple safeguard)
+        // (For a robust app, we'd store interval IDs in global vars and clear them)
         setInterval(checkWateringNeeds, 30000);
         setInterval(checkHealthNeeds, 300000);
 
-        console.log('Plant Pal initialized successfully!');
+        console.log('Plant Pal initialized successfully for user:', userId);
     } catch (err) {
         console.error('Error during initialization:', err);
     } finally {
-        // ALWAYS hide loading and show app, even if there were errors
+        // Hide loading and show app
         loadingEl.classList.add('hidden');
         appContentEl.classList.remove('hidden');
     }
 }
 
-// Run the app
-console.log('App.js loaded, initializing...');
-initializeAppLogic();
+async function init() {
+    console.log('App init starting...');
+
+    if (!sb) {
+        console.error("CRITICAL: Supabase client is null. Script might not have loaded.");
+        loadingEl.innerHTML = `
+            <div class="text-center p-6 bg-red-50 rounded-xl border border-red-200">
+                <p class="text-red-600 font-bold mb-2">System Error</p>
+                <p class="text-gray-600 mb-4">Could not connect to the gardening database.</p>
+                <button onclick="window.location.reload()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600">Reload App</button>
+            </div>
+        `;
+        return;
+    }
+
+    // 1. Setup Auth UI Listeners
+    if (toggleAuthBtn) toggleAuthBtn.addEventListener('click', toggleAuthMode);
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+    if (signupForm) signupForm.addEventListener('submit', handleSignUp);
+    if (signOutBtn) signOutBtn.addEventListener('click', handleSignOut);
+
+    // 2. Setup App Listeners (Setting them here ensures they are only set ONCE)
+    // Form listeners
+    addPlantForm.addEventListener('submit', handleAddPlant);
+
+    // AI ID Listeners
+    imageUploader.addEventListener('change', handleImageUpload);
+    aiModalCancel.addEventListener('click', hideAiResultModal);
+    aiModalAdd.addEventListener('click', handleAiPlantAdd);
+
+    // Filter/Sort Listeners
+    filterPlantsSelect.addEventListener('change', (e) => {
+        currentFilter = e.target.value;
+        renderPlants();
+    });
+    sortPlantsSelect.addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        renderPlants();
+    });
+
+    // Journal Modal Listeners
+    journalModalClose.addEventListener('click', hideJournalModal);
+    journalAddNote.addEventListener('click', handleAddJournalNote);
+    journalLogRepot.addEventListener('click', handleLogRepot);
+    journalLogRotate.addEventListener('click', handleLogRotate);
+
+    // Diagnosis Modal Listeners
+    diagnosisModalClose.addEventListener('click', hideDiagnosisModal);
+    diagnosisImageUploader.addEventListener('change', handleDiagnosisUpload);
+
+    // Pest Modal Listeners
+    pestModalClose.addEventListener('click', hidePestModal);
+    pestImageUploader.addEventListener('change', handlePestUpload);
+
+    // Encyclopedia Listeners
+    viewEncyclopediaBtn.addEventListener('click', showEncyclopediaModal);
+    encyclopediaModalClose.addEventListener('click', hideEncyclopediaModal);
+    encyclopediaSearch.addEventListener('input', () => renderEncyclopediaList(publicPlantLibrary));
+
+
+    // 3. Auth State Listener
+    sb.auth.onAuthStateChange((event, session) => {
+        console.log("Auth Event:", event);
+        if (event === 'SIGNED_IN' && session) {
+            // User is signed in
+            authContainer.classList.add('hidden');
+            loadingEl.classList.remove('hidden'); // Show loading while fetching
+            initializeAppLogic(session.user);
+        } else if (event === 'SIGNED_OUT') {
+            // User is signed out
+            authContainer.classList.remove('hidden');
+            appContentEl.classList.add('hidden');
+            loadingEl.classList.add('hidden');
+            if (userEmailDisplay) userEmailDisplay.classList.add('hidden');
+            userPlants = []; // Clear local data
+        }
+    });
+
+    // 4. Initial Check
+    // Supabase usually triggers SIGNED_IN automatically if session exists, 
+    // but we ensure the Auth screen shows up if NO session.
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+        authContainer.classList.remove('hidden');
+        loadingEl.classList.add('hidden');
+    }
+}
+
+// Run
+init();
